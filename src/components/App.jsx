@@ -17,17 +17,44 @@ const App = () => {
   const [requestInfo, setRequestInfo] = useState('');
   const [page, setPage] = useState(null);
   const [images, setImages] = useState([]);
-  const [isBtnMoreShown, setBtnMoreShown] = useState(false);
-  const [perPage] = useState(12);
+  // const [isBtnMoreShown, setBtnMoreShown] = useState(false);
+  const [totalImages, setTotalImages] = useState(0);
   // eslint-disable-next-line no-unused-vars
   const [error, setError] = useState();
 
   useEffect(() => {
     if (!requestInfo) return;
-    setStatus('pending');
+
+    const renderImages = async () => {
+      try {
+        setStatus('pending');
+        const response = await fetchImages(requestInfo, page);
+
+        if (response.hits.length === 0) {
+          toast.info(
+            'Sorry, but there are no results for your request. Please, try again with another request'
+          );
+          setStatus('resolved');
+          return;
+        }
+
+        const normalizedData = normalizedImages(response.hits);
+
+        setImages(prev => [...prev, ...normalizedData]);
+        setStatus('resolved');
+        setTotalImages(response.totalHits);
+      } catch (error) {
+        setError(error);
+        setStatus('rejected');
+      }
+    };
+
     renderImages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestInfo, page]);
+
+  useEffect(() => {
+    status === 'rejected' && toast.warn('Something went wrong. Try again!');
+  }, [status]);
 
   const handleFormSearch = newRequest => {
     setRequestInfo(newRequest);
@@ -39,29 +66,7 @@ const App = () => {
     setPage(prev => prev + 1);
   };
 
-  const renderImages = async () => {
-    try {
-      const response = await fetchImages(requestInfo, page, perPage);
-
-      if (response.hits.length === 0) {
-        toast.info(
-          'Sorry, but there are no results for your request. Please, try again with another request'
-        );
-        setStatus('resolved');
-        setBtnMoreShown(false);
-        return;
-      }
-
-      const normalizedData = normalizedImages(response.hits);
-
-      setImages(prev => [...prev, ...normalizedData]);
-      setStatus('resolved');
-      setBtnMoreShown(() => page < Math.ceil(response.totalHits / perPage));
-    } catch (error) {
-      setError(error);
-      setStatus('rejected');
-    }
-  };
+  const showBtn = totalImages !== images.length && status === 'resolve';
 
   return (
     <AppStyled>
@@ -69,13 +74,9 @@ const App = () => {
 
       {images.length > 0 && <ImageGallery images={images} />}
 
-      {isBtnMoreShown && status === 'resolved' && (
-        <Button onBtnMoreClick={onBtnMoreClick} />
-      )}
+      {showBtn && <Button onBtnMoreClick={onBtnMoreClick} />}
 
       {status === 'pending' && <Loader />}
-
-      {status === 'rejected' && toast.warn('Something went wrong. Try again!')}
 
       <ToastContainer position="top-right" />
     </AppStyled>
@@ -83,81 +84,3 @@ const App = () => {
 };
 
 export default App;
-
-// ===========================================================
-// class oldApp extends Component {
-//   state = {
-//     status: 'idle',
-//     requestInfo: '',
-//     page: null,
-//     images: [],
-//     isBtnMoreShown: false,
-//     perPage: 12,
-//   };
-
-//   componentDidUpdate(_, prevState) {
-//     const { requestInfo, page } = this.state;
-//     if (requestInfo !== prevState.requestInfo || page !== prevState.page) {
-//       this.setState({ status: 'pending' });
-//       this.renderImages();
-//     }
-//   }
-
-//   handleFormSearch = newRequest => {
-//     this.setState({ requestInfo: newRequest, page: 1, images: [] });
-//   };
-
-//   onBtnMoreClick = () => {
-//     this.setState(previousState => ({
-//       page: previousState.page + 1,
-//     }));
-//   };
-
-//   renderImages = async () => {
-//     const { requestInfo, page, perPage } = this.state;
-//     try {
-//       const response = await fetchImages(requestInfo, page, perPage);
-
-//       if (response.hits.length === 0) {
-//         toast.info(
-//           'Sorry, but there are no results for your request. Please, try again with another request'
-//         );
-//         this.setState({ status: 'resolved', isBtnMoreShown: false });
-//         return;
-//       }
-
-//       const normalizedData = normalizedImages(response.hits);
-
-//       this.setState(prevState => ({
-//         images: [...prevState.images, ...normalizedData],
-//         status: 'resolved',
-//         isBtnMoreShown: page < Math.ceil(response.totalHits / perPage),
-//       }));
-//     } catch (error) {
-//       this.setState({ error, status: 'rejected' });
-//     }
-//   };
-
-//   render() {
-//     const { images, isBtnMoreShown, status } = this.state;
-//     return (
-//       <AppStyled>
-//         <Searchbar onSubmit={this.handleFormSearch} />
-
-//         {images.length > 0 && <ImageGallery images={images} />}
-
-//         {isBtnMoreShown && status === 'resolved' && (
-//           <Button onBtnMoreClick={this.onBtnMoreClick} />
-//         )}
-
-//         {status === 'pending' && <Loader />}
-
-//         {status === 'rejected' &&
-//           toast.warn('Something went wrong. Try again!')}
-
-//         <ToastContainer position="top-right" />
-//       </AppStyled>
-//     );
-//   }
-// }
-// export default oldApp;
