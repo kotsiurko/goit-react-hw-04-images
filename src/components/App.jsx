@@ -66,7 +66,7 @@ const App = () => {
     setPage(prev => prev + 1);
   };
 
-  const showBtn = totalImages !== images.length && status === 'resolve';
+  const showBtn = totalImages !== images.length && status === 'resolved';
 
   return (
     <AppStyled>
